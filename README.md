@@ -1,4 +1,4 @@
-Simple script to save article to pdf.
+Simple script to save a article to pdf. but it also works for other pages
 
 # Installation
 
@@ -9,5 +9,5 @@ pip install wx2pdf
 # Usage
 
 ```bash
-wx2pdf.py [options] url
+wx2pdf.py -h
 ```
