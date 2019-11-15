@@ -3,7 +3,6 @@ Wechat Media Platform crawler
 """
 import os
 import re
-import logging
 import pdfkit
 import datetime
 import base64
@@ -37,6 +36,10 @@ class Crawler(dict):
             "disable-javascript": "",
         }
         self.session = requests.session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 "
+                          "Safari/537.36 "
+        })
         self.__mime__ = dict()
 
         if self.get("verbose"):
