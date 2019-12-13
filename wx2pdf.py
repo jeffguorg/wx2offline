@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Wechat Media Platform crawler
 """
@@ -8,22 +9,9 @@ import datetime
 import base64
 import urllib.parse as up
 import hashlib
+import shutil
 
 
-class cd:
-    def __init__(self, path, create=False):
-        self.lastwd = None
-        self.path = path
-        self.create = create
-
-    def __enter__(self):
-        if self.create:
-            os.makedirs(self.path, exist_ok=True)
-        self.lastwd = os.getcwd()
-        os.chdir(self.path)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        os.chdir(self.lastwd)
 
 def dull(*args, **kwargs): pass
 
@@ -112,14 +100,17 @@ class Crawler(dict):
         pdfkit.from_string(str(soup), pdffilename, options=self.options)
 
         if self.get("html"):
-            htmlfilepath = self.get("html_output") or (title + ".html")
-            htmlcontent = str(soup).replace("//res.wx.qq.com", "https://res.wx.qq.com").replace("https:https://res.wx.qq.com", "https://res.wx.qq.com")
-            htmlcontent = htmlcontent.replace("//mp.weixin.qq.com", "https://mp.weixin.qq.com").replace("https:https://mp.weixin.qq.com", "https://mp.weixin.qq.com")
+            htmlfilepath = os.path.join(self.get("html_output") or ".",  title + ".html")
+            htmlcontent = str(soup).replace("//res.wx.qq.com", "https://res.wx.qq.com").replace(
+                "https:https://res.wx.qq.com", "https://res.wx.qq.com")
+            htmlcontent = htmlcontent.replace("//mp.weixin.qq.com", "https://mp.weixin.qq.com").replace(
+                "https:https://mp.weixin.qq.com", "https://mp.weixin.qq.com")
             with open(htmlfilepath, "w+") as fp:
                 fp.write(htmlcontent)
 
     def save_assets_to_file(self, soup):
-        os.makedirs("{}.assets".format(self.get("title")), exist_ok=True)
+        assets_dir = os.path.join(self.get("html_output") or ".", "{}.assets".format(self.get("title")))
+        os.makedirs(assets_dir, exist_ok=True)
 
         self.logging("[src]")
         # replacing [src]
@@ -133,7 +124,7 @@ class Crawler(dict):
             response = self.session.get(asset_url)
             if response.status_code / 100 == 2:
                 try:
-                    filepath = "{}.assets/{}.{}".format(self.get("title"), hashlib.sha224(response.content).hexdigest(),
+                    filepath = "{}/{}.{}".format(assets_dir, hashlib.sha224(response.content).hexdigest(),
                                                         self.mime.get(response.headers.get("Content-Type", "data")))
                     with open(filepath, "wb+") as fp:
                         fp.write(response.content)
@@ -153,7 +144,7 @@ class Crawler(dict):
             response = self.session.get(asset_url)
             if response.status_code / 100 == 2:
                 try:
-                    filepath = "{}.assets/{}.{}".format(self.get("title"), hashlib.sha224(response.content).hexdigest(),
+                    filepath = "{}/{}.{}".format(assets_dir, hashlib.sha224(response.content).hexdigest(),
                                                         self.mime.get(response.headers.get("Content-Type", "data")))
                     with open(filepath, "wb+") as fp:
                         fp.write(response.content)
@@ -165,7 +156,8 @@ class Crawler(dict):
         # [style]
         for node in soup.find_all(lambda node: node.attrs.get("style")):
             style: str = node.attrs.get("style")
-            match = (re.findall('url\\((?P<url>[^"()]+)\\)', style) or []) + (re.findall('url\\("(?P<url>[^"()]+)"\\)', style) or [])
+            match = (re.findall('url\\((?P<url>[^"()]+)\\)', style) or []) + (
+                    re.findall('url\\("(?P<url>[^"()]+)"\\)', style) or [])
 
             if match:
                 self.logging(match, style)
@@ -178,10 +170,8 @@ class Crawler(dict):
                     response = self.session.get(asset_url)
                     if response.status_code / 100 == 2:
                         try:
-                            filepath = "{}.assets/{}.{}".format(self.get("title"),
-                                                                hashlib.sha224(response.content).hexdigest(),
-                                                                self.mime.get(
-                                                                    response.headers.get("Content-Type", "data")))
+                            filepath = "{}/{}.{}".format(assets_dir, hashlib.sha224(response.content).hexdigest(),
+                                                        self.mime.get(response.headers.get("Content-Type", "data")))
                             with open(filepath, "wb+") as fp:
                                 fp.write(response.content)
                             style = style.replace(url, filepath)
@@ -198,8 +188,7 @@ class Crawler(dict):
             response = self.session.get(asset_url)
             if response.status_code / 100 == 2:
                 try:
-                    filepath = "{}.assets/{}.{}".format(self.get("title"),
-                                                        hashlib.sha224(response.content).hexdigest(),
+                    filepath = "{}/{}.{}".format(assets_dir, hashlib.sha224(response.content).hexdigest(),
                                                         self.mime.get(response.headers.get("Content-Type", "data")))
                     with open(filepath, "wb+") as fp:
                         fp.write(response.content)
@@ -210,14 +199,14 @@ class Crawler(dict):
         title = self.get("title")
         title = re.sub("[|/+=]", "-", title)
 
-        htmlfilepath = self.get("html_output") or (title + ".html")
+        htmlfilepath = os.path.join(self.get("html_output") or ".", title + ".html")
         htmlcontent = str(soup).replace("//res.wx.qq.com", "https://res.wx.qq.com")
         htmlcontent = htmlcontent.replace("//mp.weixin.qq.com", "https://mp.weixin.qq.com")
         htmlcontent = htmlcontent.replace("https:https:", "https:").replace("http:https:", "http:")
         with open(htmlfilepath, "w+") as fp:
             fp.write(htmlcontent)
 
-        pdffilename = self.get("output") or (title + ".pdf")
+        pdffilename = os.path.join(self.get("output") or ".",  (title + ".pdf"))
         pdfkit.from_file(htmlfilepath, pdffilename, options=self.options)
 
     def save_webpage(self):
@@ -258,8 +247,8 @@ class Crawler(dict):
 
             getattr(self, self.get("method"))(soup)
 
-        except:
-            raise
+        except Exception as e:
+            print(e)
 
     @property
     def mime(self):
